@@ -2,7 +2,7 @@
 
 This is a Postman collection for SigningCloud API.
 
-Update environment variable:
+Update environment variables:
 - apiKey
 - apiSecret
 - uploadFilePath
