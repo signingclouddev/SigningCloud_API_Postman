@@ -21,3 +21,5 @@ Bruno is a fast, git-friendly API client for testing REST, GraphQL, and gRPC API
 The way to use is similar, you can also import the environment and edit to suit your needs accordingly
 
 Currenly only contain basic API call, thos with X- is not yet fully convert from Postman to Bruno. Feel free to convert and update here.
+
+https://www.usebruno.com/downloads
