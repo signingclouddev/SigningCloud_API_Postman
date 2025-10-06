@@ -1153,9 +1153,50 @@
           "fileContent": "// crypto-js.js - CryptoJS v3.1.9-1\n// You can get the full library from: https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.min.js\n// But here's a minimal version for AES and SHA256:\n\n// Since we can't include the full library easily, let's use Bruno's built-in crypto\n// Bruno has access to Node.js crypto module!\n\nconst CryptoJS = {\n    SHA256: function(input) {\n        const crypto = require('crypto');\n        return crypto.createHash('sha256').update(input, 'utf8').digest('hex');\n    },\n    mode: {\n        ECB: 'ECB'\n    },\n    pad: {\n        Pkcs7: 'Pkcs7'\n    },\n    AES: {\n        encrypt: function(plaintext, key, options) {\n            const crypto = require('crypto');\n            const keyBuffer = Buffer.from(key, 'hex');\n            \n            // PKCS7 padding\n            const blockSize = 16;\n            const padding = blockSize - (plaintext.length % blockSize);\n            let paddedText = plaintext + String.fromCharCode(padding).repeat(padding);\n            \n            const cipher = crypto.createCipheriv('aes-256-ecb', keyBuffer, null);\n            cipher.setAutoPadding(false); // We handle padding manually\n            let encrypted = cipher.update(paddedText, 'utf8', 'hex');\n            encrypted += cipher.final('hex');\n            \n            return {\n                ciphertext: { toString: () => encrypted },\n                toString: () => encrypted\n            };\n        },\n        decrypt: function(ciphertext, key, options) {\n            const crypto = require('crypto');\n            const keyBuffer = Buffer.from(key, 'hex');\n            \n            const encryptedBuffer = Buffer.from(ciphertext, 'base64');\n            const decipher = crypto.createDecipheriv('aes-256-ecb', keyBuffer, null);\n            decipher.setAutoPadding(false); // We handle padding manually\n            \n            let decrypted = decipher.update(encryptedBuffer);\n            decrypted = Buffer.concat([decrypted, decipher.final()]);\n            \n            // Remove PKCS7 padding\n            const padding = decrypted[decrypted.length - 1];\n            if (padding > 0 && padding <= 16) {\n                decrypted = decrypted.slice(0, -padding);\n            }\n            \n            return {\n                toString: function(encoding = 'utf8') {\n                    if (encoding === 'hex') {\n                        return decrypted.toString('hex');\n                    }\n                    return decrypted.toString('utf8');\n                }\n            };\n        }\n    },\n    enc: {\n        Hex: {\n            parse: function(hexString) {\n                return Buffer.from(hexString, 'hex');\n            }\n        },\n        Base64: {\n            stringify: function(buffer) {\n                if (buffer instanceof Buffer) {\n                    return buffer.toString('base64');\n                }\n                return Buffer.from(buffer.toString(), 'hex').toString('base64');\n            }\n        }\n    }\n};"
         }
       ]
+    },
+    {
+      "type": "http",
+      "name": "Preupload Doc offline",
+      "filename": "Preupload Doc offline.bru",
+      "seq": 25,
+      "settings": {
+        "encodeUrl": true
+      },
+      "tags": [],
+      "request": {
+        "url": "http://172.19.14.253:8080/mock-echo/post",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "multipartForm",
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "file",
+              "value": [
+                "C:\\Users\\honloon.wong\\Documents\\SigningCloud\\DEMO_form\\demo and test.1.2.3.docx"
+              ],
+              "enabled": true
+            }
+          ],
+          "file": []
+        },
+        "script": {
+          "res": "// Handle file response and extract data\ntry {\n    // res.body should already be parsed JSON object\n    const jsonData = res.body.files;\n    \n    if (!jsonData || Object.keys(jsonData).length === 0) {\n        throw new Error('No files found in response');\n    }\n    \n    const firstFileKey = Object.keys(jsonData)[0];\n    const base64ByteString = jsonData[firstFileKey].split(/[,]+/).pop();\n    const fileType = firstFileKey.split(/[.]+/).pop();\n    \n    // Set environment variables\n    bru.setEnvVar(\"base64ByteString\", base64ByteString);\n    bru.setEnvVar(\"fileType\", fileType);\n    \n    console.log(\"✅ File data extracted successfully\");\n    console.log(\"File type:\", fileType);\n    console.log(\"Base64 preview:\", base64ByteString.substring(0, 30) + \"...\");\n    \n} catch (error) {\n    console.error(\"❌ Error processing file response:\", error.message);\n    throw error;\n}"
+        },
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
     }
   ],
-  "activeEnvironmentUid": "aq03Wljv2LueZ1WoVkJ4a",
+  "activeEnvironmentUid": "o0BWHISyuAgnek5WY5jZW",
   "environments": [
     {
       "variables": [
@@ -1270,6 +1311,13 @@
           "enabled": true,
           "secret": true,
           "type": "text"
+        },
+        {
+          "name": "decryptedResponse",
+          "value": "{\"docid\":89131,\"contractnum\":\"8D9D517F332C657F7FC7BF4EFDFB0A46\"}",
+          "secret": false,
+          "enabled": true,
+          "type": "text"
         }
       ],
       "name": "SC"
@@ -1287,14 +1335,14 @@
             "value": "",
             "enabled": true,
             "local": false,
-            "uid": "XoXbQ8uhOEiBWDTglCDzl"
+            "uid": "7Sj6I9rSK1CeV8BcalSAI"
           },
           {
             "name": "fileBytes",
             "value": "",
             "enabled": true,
             "local": false,
-            "uid": "49zeDrBVdbdvwJWcSB6lL"
+            "uid": "vUMdd6gxWkLc5bDGUnM5F"
           }
         ]
       }
