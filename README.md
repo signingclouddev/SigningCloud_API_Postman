@@ -24,6 +24,9 @@ Currenly only contain basic API call, thos with X- is not yet fully convert from
 
 https://www.usebruno.com/downloads
 
+There are some libraries/modules that require node.js to be installed in our local machine. Download and install node.je
+https://nodejs.org/en/download
+
 Previously, we are using https://postman-echo.com/post in the preupload document to get the base64 value of the document and set it into the environment.
 However, if you are in an offline environment, you are not able to send out this request. 
 
