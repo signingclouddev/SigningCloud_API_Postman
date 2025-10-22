@@ -475,6 +475,47 @@
     },
     {
       "type": "http",
+      "name": "Preupload Doc offline",
+      "filename": "Preupload Doc offline.bru",
+      "seq": 25,
+      "settings": {
+        "encodeUrl": true
+      },
+      "tags": [],
+      "request": {
+        "url": "http://172.19.14.253:8080/mock-echo/post",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "multipartForm",
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "file",
+              "value": [
+                "C:\\Users\\honloon.wong\\Documents\\SigningCloud\\DEMO_form\\demo and test.1.2.3.docx"
+              ],
+              "enabled": true
+            }
+          ],
+          "file": []
+        },
+        "script": {
+          "res": "// Handle file response and extract data\ntry {\n    // res.body should already be parsed JSON object\n    const jsonData = res.body.files;\n    \n    if (!jsonData || Object.keys(jsonData).length === 0) {\n        throw new Error('No files found in response');\n    }\n    \n    const firstFileKey = Object.keys(jsonData)[0];\n    const base64ByteString = jsonData[firstFileKey].split(/[,]+/).pop();\n    const fileType = firstFileKey.split(/[.]+/).pop();\n    \n    // Set environment variables\n    bru.setEnvVar(\"base64ByteString\", base64ByteString);\n    bru.setEnvVar(\"fileType\", fileType);\n    \n    console.log(\"✅ File data extracted successfully\");\n    console.log(\"File type:\", fileType);\n    console.log(\"Base64 preview:\", base64ByteString.substring(0, 30) + \"...\");\n    \n} catch (error) {\n    console.error(\"❌ Error processing file response:\", error.message);\n    throw error;\n}"
+        },
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
       "name": "Preupload Document",
       "filename": "Preupload Document.bru",
       "seq": 5,
@@ -924,7 +965,7 @@
           "file": []
         },
         "script": {
-          "req": "// Bruno doesn't have crypto-js built-in, so we use Node.js crypto module\nconst crypto = require('crypto');\n\n// Get environment variables using Bruno's API\nconst secret = bru.getEnvVar(\"apiSecret\");\nconst base64ByteString = bru.getEnvVar(\"base64ByteString\");\n\n// Validate required variables\nif (!secret) {\n    throw new Error('apiSecret environment variable is missing');\n}\nif (!base64ByteString) {\n    throw new Error('base64ByteString environment variable is missing');\n}\n\n// Helper function to parse base64 (equivalent to CryptoJS.enc.Base64.parse)\nfunction base64Parse(base64String) {\n    // Handle data URL format (e.g., \"data:application/pdf;base64,abc123...\")\n    const cleanBase64 = base64String.split(/[,]+/).pop();\n    return Buffer.from(cleanBase64, 'base64');\n}\n\n// SHA256 function (equivalent to CryptoJS.SHA256)\nfunction SHA256(input) {\n    if (typeof input === 'string') {\n        return crypto.createHash('sha256').update(input, 'utf8').digest('hex');\n    } else if (Buffer.isBuffer(input)) {\n        return crypto.createHash('sha256').update(input).digest('hex');\n    } else {\n        throw new Error('SHA256 input must be string or Buffer');\n    }\n}\n\n// AES ECB encryption with PKCS7 padding\nfunction AESEncrypt(plaintext, keyHex) {\n    const keyBuffer = Buffer.from(keyHex, 'hex');\n    const blockSize = 16;\n    \n    // PKCS7 padding\n    const padding = blockSize - (plaintext.length % blockSize);\n    const paddedText = plaintext + String.fromCharCode(padding).repeat(padding);\n    \n    // AES-256-ECB encryption\n    const cipher = crypto.createCipheriv('aes-256-ecb', keyBuffer, null);\n    cipher.setAutoPadding(false); // We handle padding manually\n    let encrypted = cipher.update(paddedText, 'utf8', 'hex');\n    encrypted += cipher.final('hex');\n    \n    return {\n        ciphertext: encrypted,\n        toString: () => encrypted\n    };\n}\n\n// Define utility functions (equivalent to your Postman util)\nconst util = {\n    encrypt: (data) => {\n        const parsedKey = SHA256(secret);\n        return AESEncrypt(data, parsedKey);\n    },\n\n    getMac: (encryptedData) => {\n        return SHA256(encryptedData.ciphertext + secret);\n    },\n\n    preExecute: (dataBody) => {\n        const encryptedData = util.encrypt(JSON.stringify(dataBody));\n        const mac = util.getMac(encryptedData);\n        bru.setEnvVar(\"data\", encryptedData.ciphertext);\n        bru.setEnvVar(\"mac\", mac);\n    }\n};\n\n// Parse base64 string for uploadFileHash\nconst wordsBuffer = base64Parse(base64ByteString);\n\n// Create dataBody exactly as in your Postman script\nvar dataBody = {\n    \"contractInfo\": {\n        \"contractname\": \"test_file\",\n        \"isRemoveSignature\": true,\n        \"signernum\": 1,\n        \"contractnum\": \"\",\n        \"signerinfo\": [{\n            \"caprovide\": \"1\",\n            \"email\": \"honloontestnewdev@yopmail.com\",\n          \"signset\": [\n//                 {\"fieldtype\":\"textfield\",\"left\":0,\"top\":4,\"width\":150,\"height\":50,\"pageindex\":1},\n                {\"fieldtype\":\"sign\",\"left\":72,\"top\":395,\"width\":100,\"height\":50,\"pageindex\":1},\n//                 {\"fieldtype\":\"sign\",\"left\":494,\"top\":791,\"width\":100,\"height\":50,\"pageindex\":1}\n            ],\n            \"authtype\": 0\n//             \n        }]\n    },\n    \"uploadFileHash\": SHA256(wordsBuffer), // SHA256 of the binary data\n    \"type\": \"docx\"\n};\n\n// Execute the preExecute function\nutil.preExecute(dataBody);\n\nconsole.log(\"✅ Pre-request script completed successfully\");",
+          "req": "// Bruno doesn't have crypto-js built-in, so we use Node.js crypto module\nconst crypto = require('crypto');\nconst { TextEncoder, TextDecoder } = require('util');\n\n// Get environment variables using Bruno's API\nconst secret = bru.getEnvVar(\"apiSecret\");\nconst base64ByteString = bru.getEnvVar(\"base64ByteString\");\n\n// Validate required variables\nif (!secret) {\n    throw new Error('apiSecret environment variable is missing');\n}\nif (!base64ByteString) {\n    throw new Error('base64ByteString environment variable is missing');\n}\n\n// Helper function to parse base64 (equivalent to CryptoJS.enc.Base64.parse)\nfunction base64Parse(base64String) {\n    // Handle data URL format (e.g., \"data:application/pdf;base64,abc123...\")\n    const cleanBase64 = base64String.split(/[,]+/).pop();\n    return Buffer.from(cleanBase64, 'base64');\n}\n\n// SHA256 function (equivalent to CryptoJS.SHA256)\nfunction SHA256(input) {\n    if (typeof input === 'string') {\n        return crypto.createHash('sha256').update(input, 'utf8').digest('hex');\n    } else if (Buffer.isBuffer(input)) {\n        return crypto.createHash('sha256').update(input).digest('hex');\n    } else {\n        throw new Error('SHA256 input must be string or Buffer');\n    }\n}\n\n// AES ECB encryption with PKCS7 padding\nfunction AESEncrypt(plaintext, keyHex) {\n    const keyBuffer = Buffer.from(keyHex, 'hex');\n    const blockSize = 16;\n    \n    // PKCS7 padding\n    const padding = blockSize - (plaintext.length % blockSize);\n    const paddedText = plaintext + String.fromCharCode(padding).repeat(padding);\n    \n    // AES-256-ECB encryption\n    const cipher = crypto.createCipheriv('aes-256-ecb', keyBuffer, null);\n    cipher.setAutoPadding(false); // We handle padding manually\n    let encrypted = cipher.update(paddedText, 'utf8', 'hex');\n    encrypted += cipher.final('hex');\n    \n    return {\n        ciphertext: encrypted,\n        toString: () => encrypted\n    };\n}\n\n// Define utility functions (equivalent to your Postman util)\nconst util = {\n    encrypt: (data) => {\n        const parsedKey = SHA256(secret);\n        return AESEncrypt(data, parsedKey);\n    },\n\n    getMac: (encryptedData) => {\n        return SHA256(encryptedData.ciphertext + secret);\n    },\n\n    preExecute: (dataBody) => {\n        const encryptedData = util.encrypt(JSON.stringify(dataBody));\n        const mac = util.getMac(encryptedData);\n        bru.setEnvVar(\"data\", encryptedData.ciphertext);\n        bru.setEnvVar(\"mac\", mac);\n    }\n};\n\n// Parse base64 string for uploadFileHash\nconst wordsBuffer = base64Parse(base64ByteString);\n\n// Create dataBody exactly as in your Postman script\nvar dataBody = {\n    \"contractInfo\": {\n        \"contractname\": \"test_file\",\n        \"isRemoveSignature\": true,\n        \"signernum\": 1,\n        \"contractnum\": \"\",\n        \"signerinfo\": [{\n            \"caprovide\": \"1\",\n            \"email\": \"honloontestnewdev@yopmail.com\",\n          \"signset\": [\n//                 {\"fieldtype\":\"textfield\",\"left\":0,\"top\":4,\"width\":150,\"height\":50,\"pageindex\":1},\n                {\"fieldtype\":\"sign\",\"left\":72,\"top\":395,\"width\":100,\"height\":50,\"pageindex\":1},\n//                 {\"fieldtype\":\"sign\",\"left\":494,\"top\":791,\"width\":100,\"height\":50,\"pageindex\":1}\n            ],\n            \"authtype\": 0\n//             \n        }]\n    },\n    \"uploadFileHash\": SHA256(wordsBuffer), // SHA256 of the binary data\n    \"type\": \"docx\"\n};\n\n// Execute the preExecute function\nutil.preExecute(dataBody);\n\nconsole.log(\"✅ Pre-request script completed successfully\");",
           "res": "// Safe version that handles both string and object\nconst apiSecret = bru.getEnvVar('apiSecret');\nif (!apiSecret) {\n    throw new Error('apiSecret not found in collection variables');\n}\n\n// Debug the response structure\nconsole.log('res.body type:', typeof res.body);\nconsole.log('res.body:', res.body);\n\n// Safely get JSON data\nlet jsonData1;\ntry {\n    if (typeof res.body === 'string') {\n        jsonData1 = JSON.parse(res.body);\n    } else if (typeof res.body === 'object' && res.body !== null) {\n        jsonData1 = res.body;\n    } else {\n        throw new Error('Unexpected response body type');\n    }\n} catch (parseError) {\n    console.error('Failed to parse response:', parseError.message);\n    throw new Error('Invalid JSON response');\n}\n\nconsole.log('jsonData keys:', Object.keys(jsonData1 || {}));\nconsole.log('jsonData.data:', jsonData1.data);\nconsole.log('jsonData.data type:', typeof jsonData1.data);\n\n// Check if data field exists\nif (!jsonData1.data) {\n    throw new Error('Response does not contain \"data\" field. Available fields: ' + Object.keys(jsonData1).join(', '));\n}\n\nconst crypto = require('crypto');\nconst parsedKey = crypto.createHash('sha256').update(apiSecret, 'utf8').digest('hex');\n\nfunction hexToAscii(str1) {\n    var hex = str1.toString();\n    var str = '';\n    for (var n = 0; n < hex.length; n += 2) {\n        str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));\n    }\n    return str;\n}\n\nfunction decrypt(data) {\n    const keyBuffer = Buffer.from(parsedKey, 'hex');\n    const encryptedBuffer = Buffer.from(data, 'hex');\n    const decipher = crypto.createDecipheriv('aes-256-ecb', keyBuffer, null);\n    decipher.setAutoPadding(false);\n    let decrypted = decipher.update(encryptedBuffer);\n    decrypted = Buffer.concat([decrypted, decipher.final()]);\n    \n    const padding = decrypted[decrypted.length - 1];\n    if (padding > 0 && padding <= 16) {\n        decrypted = decrypted.slice(0, -padding);\n    }\n    \n    const decryptedText = decrypted.toString('hex');\n    return JSON.parse(hexToAscii(decryptedText));\n}\n\n// ✅ Handle both string and object responses\nvar jsonData = typeof res.body === 'string' ? JSON.parse(res.body) : res.body;\nvar data = jsonData.data;\nvar decryptJson = decrypt(data);\n\nconsole.log(\"decryptJson\", JSON.stringify(decryptJson));\nbru.setEnvVar(\"decryptedResponse\", JSON.stringify(decryptJson));\n// Set environment variable\nbru.setEnvVar(\"uploadedContractNum\", decryptJson.contractnum);"
         },
         "vars": {},
@@ -1153,50 +1194,9 @@
           "fileContent": "// crypto-js.js - CryptoJS v3.1.9-1\n// You can get the full library from: https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.min.js\n// But here's a minimal version for AES and SHA256:\n\n// Since we can't include the full library easily, let's use Bruno's built-in crypto\n// Bruno has access to Node.js crypto module!\n\nconst CryptoJS = {\n    SHA256: function(input) {\n        const crypto = require('crypto');\n        return crypto.createHash('sha256').update(input, 'utf8').digest('hex');\n    },\n    mode: {\n        ECB: 'ECB'\n    },\n    pad: {\n        Pkcs7: 'Pkcs7'\n    },\n    AES: {\n        encrypt: function(plaintext, key, options) {\n            const crypto = require('crypto');\n            const keyBuffer = Buffer.from(key, 'hex');\n            \n            // PKCS7 padding\n            const blockSize = 16;\n            const padding = blockSize - (plaintext.length % blockSize);\n            let paddedText = plaintext + String.fromCharCode(padding).repeat(padding);\n            \n            const cipher = crypto.createCipheriv('aes-256-ecb', keyBuffer, null);\n            cipher.setAutoPadding(false); // We handle padding manually\n            let encrypted = cipher.update(paddedText, 'utf8', 'hex');\n            encrypted += cipher.final('hex');\n            \n            return {\n                ciphertext: { toString: () => encrypted },\n                toString: () => encrypted\n            };\n        },\n        decrypt: function(ciphertext, key, options) {\n            const crypto = require('crypto');\n            const keyBuffer = Buffer.from(key, 'hex');\n            \n            const encryptedBuffer = Buffer.from(ciphertext, 'base64');\n            const decipher = crypto.createDecipheriv('aes-256-ecb', keyBuffer, null);\n            decipher.setAutoPadding(false); // We handle padding manually\n            \n            let decrypted = decipher.update(encryptedBuffer);\n            decrypted = Buffer.concat([decrypted, decipher.final()]);\n            \n            // Remove PKCS7 padding\n            const padding = decrypted[decrypted.length - 1];\n            if (padding > 0 && padding <= 16) {\n                decrypted = decrypted.slice(0, -padding);\n            }\n            \n            return {\n                toString: function(encoding = 'utf8') {\n                    if (encoding === 'hex') {\n                        return decrypted.toString('hex');\n                    }\n                    return decrypted.toString('utf8');\n                }\n            };\n        }\n    },\n    enc: {\n        Hex: {\n            parse: function(hexString) {\n                return Buffer.from(hexString, 'hex');\n            }\n        },\n        Base64: {\n            stringify: function(buffer) {\n                if (buffer instanceof Buffer) {\n                    return buffer.toString('base64');\n                }\n                return Buffer.from(buffer.toString(), 'hex').toString('base64');\n            }\n        }\n    }\n};"
         }
       ]
-    },
-    {
-      "type": "http",
-      "name": "Preupload Doc offline",
-      "filename": "Preupload Doc offline.bru",
-      "seq": 25,
-      "settings": {
-        "encodeUrl": true
-      },
-      "tags": [],
-      "request": {
-        "url": "http://172.19.14.253:8080/mock-echo/post",
-        "method": "POST",
-        "headers": [],
-        "params": [],
-        "body": {
-          "mode": "multipartForm",
-          "formUrlEncoded": [],
-          "multipartForm": [
-            {
-              "type": "file",
-              "name": "file",
-              "value": [
-                "C:\\Users\\honloon.wong\\Documents\\SigningCloud\\DEMO_form\\demo and test.1.2.3.docx"
-              ],
-              "enabled": true
-            }
-          ],
-          "file": []
-        },
-        "script": {
-          "res": "// Handle file response and extract data\ntry {\n    // res.body should already be parsed JSON object\n    const jsonData = res.body.files;\n    \n    if (!jsonData || Object.keys(jsonData).length === 0) {\n        throw new Error('No files found in response');\n    }\n    \n    const firstFileKey = Object.keys(jsonData)[0];\n    const base64ByteString = jsonData[firstFileKey].split(/[,]+/).pop();\n    const fileType = firstFileKey.split(/[.]+/).pop();\n    \n    // Set environment variables\n    bru.setEnvVar(\"base64ByteString\", base64ByteString);\n    bru.setEnvVar(\"fileType\", fileType);\n    \n    console.log(\"✅ File data extracted successfully\");\n    console.log(\"File type:\", fileType);\n    console.log(\"Base64 preview:\", base64ByteString.substring(0, 30) + \"...\");\n    \n} catch (error) {\n    console.error(\"❌ Error processing file response:\", error.message);\n    throw error;\n}"
-        },
-        "vars": {},
-        "assertions": [],
-        "tests": "",
-        "docs": "",
-        "auth": {
-          "mode": "none"
-        }
-      }
     }
   ],
-  "activeEnvironmentUid": "o0BWHISyuAgnek5WY5jZW",
+  "activeEnvironmentUid": "BWar6K5aFTxmFc3TndqQM",
   "environments": [
     {
       "variables": [
@@ -1314,7 +1314,7 @@
         },
         {
           "name": "decryptedResponse",
-          "value": "{\"docid\":89131,\"contractnum\":\"8D9D517F332C657F7FC7BF4EFDFB0A46\"}",
+          "value": "{\"docid\":89343,\"contractnum\":\"85346F27E86CF44ABD8E8B7FEA93988F\"}",
           "secret": false,
           "enabled": true,
           "type": "text"
@@ -1335,14 +1335,14 @@
             "value": "",
             "enabled": true,
             "local": false,
-            "uid": "7Sj6I9rSK1CeV8BcalSAI"
+            "uid": "BECNyMG53fz2keQLhlCMf"
           },
           {
             "name": "fileBytes",
             "value": "",
             "enabled": true,
             "local": false,
-            "uid": "vUMdd6gxWkLc5bDGUnM5F"
+            "uid": "fO3NHO6fuUbqCKxGiEXIG"
           }
         ]
       }
@@ -1359,7 +1359,7 @@
       "node_modules",
       ".git"
     ],
-    "size": 0.5082302093505859,
-    "filesCount": 26
+    "size": 0.5094337463378906,
+    "filesCount": 27
   }
 }
