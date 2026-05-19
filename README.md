@@ -34,3 +34,7 @@ To get back the same result in offline, you can download the mock-echo.war and d
 Edit the URL in the Preupload document offline request. then run it 1st before you are the upload document API. You should see the base64 value is set in your Bruno environment.
 
 This mock-echo also can be used in Postman, just deploy and change the request URL accordingly
+
+***** YOU NEED TO BE IN DEVELOPER MODE ******
+on top right, next to the environment setting, there is a switch to chose between safe mode and developer mode
+
